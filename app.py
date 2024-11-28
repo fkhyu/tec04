@@ -1,4 +1,11 @@
+#=======================================================================
+# TODO:
+# 1. Create basic game
+# 2. Create menu page
+# 3. Implement multiplayer
+#=======================================================================
+
+
 import pygame
-import time 
-import requests
-import socket
+
+
