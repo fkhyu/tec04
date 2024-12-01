@@ -6,7 +6,7 @@ import json
 server_url = 'http://localhost:8000/server.php'
 
 # Define a unique client ID (this could be any string or identifier)
-client_id = 'client1'
+client_id = 'client2'
 
 # Function to send data to the server
 def send_data(message):
@@ -36,6 +36,6 @@ def get_data():
 
 # Loop that sends and receives data every 1 second
 while True:
-    send_data("Hello from client1!")
+    send_data("Hello from client2!")
     get_data()
     time.sleep(1)
