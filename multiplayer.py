@@ -2,37 +2,100 @@ import pygame
 import math
 import random
 import sys
+import requests
+import uuid
+
+# Server URL
+server_url = 'http://localhost:8000/server.php' #only for local testing
+
+# Define a unique client ID (this could be any string or identifier)
+client_id = str(uuid.uuid4())
+
+# Function to send data to the server
+def send_data(message):
+    data_to_send = {'client_id': client_id, 'message': message}
+    response = requests.post(server_url, json=data_to_send)
+    if response.status_code == 200:
+        data = response.json()
+        if data['status'] == 'success':
+            # print("Data successfully sent to the server.")
+            return data
+        else:
+            print("Failed to send data.")
+    else:
+        print(f"Failed to send data. Status code: {response.status_code}")
+
+# Function to retrieve data from the server (other clients' data)
+def get_data():
+    params = {'client_id': client_id}
+    try:
+        response = requests.get(server_url, params=params)
+        if response.status_code == 200:
+            data = response.json()
+            # print(f"Server data: {data}")  # Debugging output
+            if isinstance(data, dict):
+                return data
+        print("No valid data received from server.")
+    except Exception as e:
+        print(f"Error fetching data from server: {e}")
+    return None
+
+
+def get_snake(data):
+    if not data:
+        print("No data received.")
+        return []  # Return an empty list if no data is received
+    
+    for other_client_id, snake_data in data.items():
+        if other_client_id != client_id:  # Skip your own data
+            # print(f"Snake data from client {other_client_id}: {snake_data}")
+            return snake_data  # Return the first found snake
+    
+    print("No other clients found.")
+    return []  # Default to empty if no other clients are found
+
+def from_data(my_key, data):
+    for key, value in data.items():
+        try :
+            if key == my_key:
+                return value
+        except:
+            pass
+
+
+# ======================== Pygame Snake Game ========================
 
 pygame.init()
 
 # Screen setup
 w, h = 800, 600
 screen = pygame.display.set_mode([w, h])
-pygame.display.set_caption("WTS - What The Snake")
+# pygame.display.set_caption("WTS - What The Snake")
+pygame.display.set_caption(client_id)
 
 running = True
 clock = pygame.time.Clock()
 
 # Snake initialization
-r = 20  # Circle radius
+r = from_data('radius', get_data())  # Circle radius
 segment_distance = int(0.6 * r)  # Distance between segments
 snake = [{"x": 0, "y": 0}]  # Start the snake at the world origin
 for i in range(4):  # Add initial body segments
     snake.append({"x": snake[-1]["x"], "y": snake[-1]["y"] + segment_distance})
 
-v = 200  # Speed in pixels/second
-a = 1.00001  # Speed multiplier
-max_fps = 60  # Maximum frames per second
+v = from_data('speed', get_data())  # Speed in pixels/second
+a = from_data('a', get_data())  # Speed multiplier
+max_fps = from_data('max_fps', get_data())  # Maximum frames per second
 direction = {"x": 0, "y": 1}  # Initial direction
 
 # Boost initialization
 boost_radius = 10  # Small boost size
-boost_count = 70  # Number of boosts
+boost_count = from_data('boost_count', get_data())  # Number of boosts
 boosts = []  # List of boosts
 boost_timer = 0  # Tracks time for adding new boosts
 
 # Finite world size (square)
-world_size = 800  # Total size of the world (centered at origin)
+world_size = from_data('world_size', get_data())  # Total size of the world (centered at origin)
 font = pygame.font.SysFont("Arial", 50)
 
 # Center of the screen (snake's head stays here)
@@ -57,13 +120,13 @@ boosts = spawn_boosts(boost_count, world_size)
 
 
 while running:
+    send_data(snake)
     v *= a  # Gradually increase speed
     delta_time = clock.tick(max_fps) / 1000  # Limit to 60 FPS for smooth performance
 
     # Get and print FPS
     # fps = clock.get_fps()  # Get the current FPS
     # print(f"FPS: {fps:.2f}")  # Print FPS in the console with two decimal places
-    # print(snake)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -100,24 +163,24 @@ while running:
     if -world_size <= new_head_y <= world_size:
         snake[0]["y"] = new_head_y
     
-    #pygame.display.set_caption(f"X: {snake[0]["x"]:.2f}, Y: {snake[0]["y"]:.2f}")
+    pygame.display.set_caption(f"X: {snake[0]["x"]:.2f}, Y: {snake[0]["y"]:.2f} | {client_id}")
 
-    # Check for out-of-bounds
-    if not (-world_size <= new_head_x <= world_size) or not (-world_size <= new_head_y <= world_size):
-        running = False
-        # Render the "Game Over" text
-        popup = pygame.Surface((w/2, h/2), pygame.SRCALPHA)
-        pygame.draw.rect(popup, (0, 0, 0, 230), pygame.Rect(0, 0, w / 2, h / 2), border_radius=20)  # White with rounded corners
-        game_over_text = pygame.font.SysFont("Arial", 50, "Bold").render("Game Over", True, (255, 255, 0))
-        score = pygame.font.SysFont("Arial", 25).render(f"Your score: {len(snake)-5}", True, (255, 255, 255))
-        # Position the text at the center of the screen
-        screen.blit(popup, (w / 4, h / 4))
-        screen.blit(game_over_text, (w / 3, h / 2.4))
-        screen.blit(score, (w / 2.5, h / 1.9))
-        pygame.display.update()  # Update the display
-        pygame.time.wait(3000)  # Wait for 3 seconds before quitting
-        pygame.quit()  # Quit Pygame
-        sys.exit()  # Exit the program
+    # # Check for out-of-bounds
+    # if not (-world_size <= new_head_x <= world_size) or not (-world_size <= new_head_y <= world_size):
+    #     running = False
+    #     # Render the "Game Over" text
+    #     popup = pygame.Surface((w/2, h/2), pygame.SRCALPHA)
+    #     pygame.draw.rect(popup, (0, 0, 0, 230), pygame.Rect(0, 0, w / 2, h / 2), border_radius=20)  # White with rounded corners
+    #     game_over_text = pygame.font.SysFont("Arial", 50, "Bold").render("Game Over", True, (255, 255, 0))
+    #     score = pygame.font.SysFont("Arial", 25).render(f"Your score: {len(snake)-5}", True, (255, 255, 255))
+    #     # Position the text at the center of the screen
+    #     screen.blit(popup, (w / 4, h / 4))
+    #     screen.blit(game_over_text, (w / 3, h / 2.4))
+    #     screen.blit(score, (w / 2.5, h / 1.9))
+    #     pygame.display.update()  # Update the display
+    #     pygame.time.wait(3000)  # Wait for 3 seconds before quitting
+    #     pygame.quit()  # Quit Pygame
+    #     sys.exit()  # Exit the program
 
     # Update the body segments
     for i in range(len(snake) - 1, 0, -1):
@@ -160,6 +223,22 @@ while running:
         screen_y = center_y + (segment["y"] - snake[0]["y"])
         color = (30, 30, 30)
         pygame.draw.circle(screen, color, (int(screen_x), int(screen_y)), r)
+
+
+    snake2 = get_snake(get_data())
+    if not snake2:
+        print("No second snake to draw.")
+    else:
+        print(f"Drawing second snake: {snake2}")
+        for segment in snake2:
+            try:
+                screen_x = center_x + (segment['x'] - snake[0]['x'])
+                screen_y = center_y + (segment['y'] - snake[0]['y'])
+                pygame.draw.circle(screen, (30, 30, 200), (int(screen_x), int(screen_y)), r)
+                print(f"Drawn segment at ({segment['x']:.2f}, {segment['y']:.2f})")
+            except KeyError as e:
+                print(f"Invalid segment data: {segment}, error: {e}")
+        
 
     # Draw all boosts
     for boost in boosts:

@@ -22,6 +22,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Save the new data under the corresponding client_id
         $stored_data[$data['client_id']] = $data['message'];
+        $stored_data['speed'] = 100;
+        $stored_data['radius'] = 20;
+        $stored_data['a'] = 1.00001;
+        $stored_data['max_fps'] = 60;
+        $stored_data['boost_count'] = 70;
+        $stored_data['world_size'] = 800;
 
         // Write the updated data back to the file
         file_put_contents($filename, json_encode($stored_data));
