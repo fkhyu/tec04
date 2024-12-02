@@ -100,7 +100,7 @@ while running:
     if -world_size <= new_head_y <= world_size:
         snake[0]["y"] = new_head_y
     
-    #pygame.display.set_caption(f"X: {snake[0]["x"]:.2f}, Y: {snake[0]["y"]:.2f}")
+    pygame.display.set_caption(f"X: {snake[0]['x']:.2f}, Y: {snake[0]['y']:.2f}")
 
     # Check for out-of-bounds
     if not (-world_size <= new_head_x <= world_size) or not (-world_size <= new_head_y <= world_size):
