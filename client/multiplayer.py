@@ -6,7 +6,7 @@ import requests
 import uuid
 
 # Server URL
-server_url = 'http://localhost:8000/server.php' #only for local testing
+server_url = 'http://localhost:8000/server/server.php' #only for local testing
 
 # Define a unique client ID (this could be any string or identifier)
 client_id = str(uuid.uuid4())
@@ -40,8 +40,16 @@ def get_data():
         print(f"Error fetching data from server: {e}")
     return None
 
+def from_data(my_key, data):
+    for key, value in data.items():
+        try :
+            if key == my_key:
+                return value
+        except:
+            pass
 
-def get_snake(data):
+def get_snake():
+    data = from_data('message', get_data())
     if not data:
         print("No data received.")
         return []  # Return an empty list if no data is received
@@ -54,7 +62,8 @@ def get_snake(data):
     print("No other clients found.")
     return []  # Default to empty if no other clients are found
 
-def from_data(my_key, data):
+def get_presets(my_key):
+    data = from_data('preset_data', get_data())
     for key, value in data.items():
         try :
             if key == my_key:
@@ -77,25 +86,25 @@ running = True
 clock = pygame.time.Clock()
 
 # Snake initialization
-r = from_data('radius', get_data())  # Circle radius
+r = get_presets('radius')  # Circle radius
 segment_distance = int(0.6 * r)  # Distance between segments
 snake = [{"x": 0, "y": 0}]  # Start the snake at the world origin
 for i in range(4):  # Add initial body segments
     snake.append({"x": snake[-1]["x"], "y": snake[-1]["y"] + segment_distance})
 
-v = from_data('speed', get_data())  # Speed in pixels/second
-a = from_data('a', get_data())  # Speed multiplier
-max_fps = from_data('max_fps', get_data())  # Maximum frames per second
+v = get_presets('speed')  # Speed in pixels/second
+a = get_presets('a')  # Speed multiplier
+max_fps = get_presets('max_fps')  # Maximum frames per second
 direction = {"x": 0, "y": 1}  # Initial direction
 
 # Boost initialization
 boost_radius = 10  # Small boost size
-boost_count = from_data('boost_count', get_data())  # Number of boosts
+boost_count = get_presets('boost_count')  # Number of boosts
 boosts = []  # List of boosts
 boost_timer = 0  # Tracks time for adding new boosts
 
 # Finite world size (square)
-world_size = from_data('world_size', get_data())  # Total size of the world (centered at origin)
+world_size = get_presets('world_size')  # Total size of the world (centered at origin)
 font = pygame.font.SysFont("Arial", 50)
 
 # Center of the screen (snake's head stays here)
@@ -225,7 +234,7 @@ while running:
         pygame.draw.circle(screen, color, (int(screen_x), int(screen_y)), r)
 
 
-    snake2 = get_snake(get_data())
+    snake2 = get_snake()
     if not snake2:
         print("No second snake to draw.")
     else:
