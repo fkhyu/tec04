@@ -6,7 +6,7 @@ import requests
 import uuid
 
 # Server URL
-server_url = 'http://localhost:8000/server.php' #only for local testing
+server_url = 'http://10.97.98.142:8000/server/server.php'
 
 # Define a unique client ID (this could be any string or identifier)
 client_id = str(uuid.uuid4())
