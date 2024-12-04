@@ -4,7 +4,7 @@ import random
 import asyncio
 import requests
 import uuid
-import websockets
+import json
 
 from ws import Connection
 
@@ -17,67 +17,65 @@ client_id = str(uuid.uuid4())
 
 # Function to send data to the server
 async def send_data(message):
-    data_to_send = {'client_id': client_id, 'message': message}
-    response = conn.send(data_to_send)
+    response = await conn.send(json.dumps(message))
     if response:
-        print("Data successfully sent to the server.")
+        return response
 
-    # response = requests.post(server_url, json=data_to_send)
-    # if response.status_code == 200:
-    #     data = response.json()
-    #     if data['status'] == 'success':
-    #         # print("Data successfully sent to the server.")
-    #         return data
-    #     else:
-    #         print("Failed to send data.")
-    # else:
-    #     print(f"Failed to send data. Status code: {response.status_code}")
+
+async def receive_data():
+    while True:
+        message = await conn.get()
+        data = json.loads(message)
+        # Update game state with the received data
+        # handle_received_data(data)
+asyncio.create_task(receive_data())
+
 
 # Function to retrieve data from the server (other clients' data)
-def get_data():
-    params = {'client_id': client_id}
-    try:
-        response = requests.get(server_url, params=params)
-        if response.status_code == 200:
-            data = response.json()
-            # print(f"Server data: {data}")  # Debugging output
-            if isinstance(data, dict):
-                return data
-        print("No valid data received from server.")
-    except Exception as e:
-        print(f"Error fetching data from server: {e}")
-    return None
+# def get_data():
+#     params = {'client_id': client_id}
+#     try:
+#         response = requests.get(server_url, params=params)
+#         if response.status_code == 200:
+#             data = response.json()
+#             # print(f"Server data: {data}")  # Debugging output
+#             if isinstance(data, dict):
+#                 return data
+#         print("No valid data received from server.")
+#     except Exception as e:
+#         print(f"Error fetching data from server: {e}")
+#     return None
 
-def from_data(my_key, data):
-    for key, value in data.items():
-        try :
-            if key == my_key:
-                return value
-        except:
-            pass
+# def from_data(my_key, data):
+#     for key, value in data.items():
+#         try :
+#             if key == my_key:
+#                 return value
+#         except:
+#             pass
 
-def get_snake():
-    data = from_data('message', get_data())
-    if not data:
-        print("No data received.")
-        return []  # Return an empty list if no data is received
+# def get_snake():
+#     data = from_data('message', get_data())
+#     if not data:
+#         print("No data received.")
+#         return []  # Return an empty list if no data is received
     
-    for other_client_id, snake_data in data.items():
-        if other_client_id != client_id:  # Skip your own data
-            # print(f"Snake data from client {other_client_id}: {snake_data}")
-            return snake_data  # Return the first found snake
+#     for other_client_id, snake_data in data.items():
+#         if other_client_id != client_id:  # Skip your own data
+#             # print(f"Snake data from client {other_client_id}: {snake_data}")
+#             return snake_data  # Return the first found snake
     
-    print("No other clients found.")
-    return []  # Default to empty if no other clients are found
+#     print("No other clients found.")
+#     return []  # Default to empty if no other clients are found
 
-def get_presets(my_key):
-    data = from_data('preset_data', get_data())
-    for key, value in data.items():
-        try :
-            if key == my_key:
-                return value
-        except:
-            pass
+# def get_presets(my_key):
+#     data = from_data('preset_data', get_data())
+#     for key, value in data.items():
+#         try :
+#             if key == my_key:
+#                 return value
+#         except:
+#             pass
 
 
 # ======================== Pygame Snake Game ========================
@@ -137,7 +135,10 @@ boosts = spawn_boosts(boost_count, world_size)
 
 
 while running:
-    send_data(snake)
+    conn.connect()
+    asyncio.run(send_data(snake))
+
+
     v *= a  # Gradually increase speed
     delta_time = clock.tick(max_fps) / 1000  # Limit to 60 FPS for smooth performance
 
@@ -148,6 +149,7 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+            conn.close
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
                 v *= 2
@@ -266,4 +268,5 @@ while running:
 
     pygame.display.flip()
 
+conn.close()
 pygame.quit()

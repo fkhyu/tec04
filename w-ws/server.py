@@ -2,9 +2,10 @@ import asyncio
 import websockets
 import json
 
-clients = set()
+clients = {}
+game_state = {}
 
-# Game configuration to be sent to each client
+# Game config
 game_config = {
     "speed": 100,
     "radius": 20,
@@ -14,49 +15,48 @@ game_config = {
     "world_size": 800
 }
 
+async def broadcast():
+    while True:
+        if clients:
+            data_to_broadcast = {"players": game_state}
+            for client in list(clients.values()):
+                try:
+                    await client.send(json.dumps(data_to_broadcast))
+                except websockets.ConnectionClosed:
+                    # Handle client disconnection later
+                    pass
+        await asyncio.sleep(0.05)
+
 async def handler(websocket, path):
-    # Register client
-    clients.add(websocket)
-    print(f"New client connected: {websocket}")
+    # Assign a unique ID for the client
+    client_id = str(id(websocket))
+    clients[client_id] = websocket
+    print(f"New client connected: {client_id}")
+
     try:
-        # Send game config to the new client
+        # Send game configuration to the new client
         await websocket.send(json.dumps(game_config))
 
-        # Notify other clients about new connection
-        for client in clients:
-            if client != websocket:
-                await client.send("A new player has joined the game!")
-
-        # Handle incoming messages and broadcast to other clients
         async for message in websocket:
             try:
-                # Try to parse message as json
-                data = json.loads(message)  
-                print(f"Received structured message from client: {data}")
-
-                # Broadcast the message to other clients
-                for client in clients:
-                    if client != websocket:
-                        await client.send(json.dumps({"from": data["client_id"], "message": data["message"]}))
-                    else:
-                        await client.send(json.dumps({"from": "You", "message": data["message"]}))
+                # Parse and update the game state
+                data = json.loads(message)
+                game_state[client_id] = data
             except json.JSONDecodeError:
-                # Handle plain text
-                print(f"Received plain text message from client: {message}")
+                print(f"Invalid message from {client_id}: {message}")
 
-                # Broadcast the plain text to other clients
-                for client in clients:
-                    if client != websocket:
-                        await client.send(f"Message from another player: {message}")
-
-
+    except websockets.ConnectionClosed:
+        print(f"Client disconnected: {client_id}")
     finally:
-        # Unregister client
-        clients.remove(websocket)
-        for client in clients:
-            await client.send("A player has left the game!")
+        # Clean up on disconnection
+        clients.pop(client_id, None)
+        game_state.pop(client_id, None)
 
-start_server = websockets.serve(handler, "localhost", 8000)
+# Run the WebSocket server and broadcast in the same event loop
+async def main():
+    server = await websockets.serve(handler, "localhost", 8000)
+    print("Server started at ws://localhost:8000")
+    await asyncio.gather(server.wait_closed(), broadcast())
 
-asyncio.get_event_loop().run_until_complete(start_server)
-asyncio.get_event_loop().run_forever()
+# Start the main event loop
+asyncio.run(main())
