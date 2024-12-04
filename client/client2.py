@@ -6,7 +6,7 @@ import requests
 import uuid
 
 # Server URL
-server_url = 'http://localhost:8000/server.php'
+server_url = 'http://10.97.98.142:8000/server/server.php'
 
 # Define a unique client ID (this could be any string or identifier)
 client_id = str(uuid.uuid4())
@@ -67,7 +67,7 @@ snake = [{"x": 0, "y": 0}]  # Start the snake at the world origin
 for i in range(4):  # Add initial body segments
     snake.append({"x": snake[-1]["x"], "y": snake[-1]["y"] + segment_distance})
 
-v = 20  # Speed in pixels/second
+v = 100  # Speed in pixels/second
 a = 1.00001  # Speed multiplier
 max_fps = 60  # Maximum frames per second
 direction = {"x": 0, "y": 1}  # Initial direction

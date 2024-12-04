@@ -58,12 +58,12 @@ boosts = spawn_boosts(boost_count, world_size)
 
 while running:
     v *= a  # Gradually increase speed
-    delta_time = clock.tick(max_fps) / 1000  # Limit to 60 FPS for smooth performance
+    delta_time = clock.tick(max_fps) / 1000  # Limit to Max FPS
 
     # Get and print FPS
     # fps = clock.get_fps()  # Get the current FPS
-    # print(f"FPS: {fps:.2f}")  # Print FPS in the console with two decimal places
-    # print(snake)
+    # print(f"FPS: {fps:.2f}")  # Print FPS
+    # print(snake)  # Print the snake dictionary
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -121,8 +121,20 @@ while running:
 
     # Update the body segments
     for i in range(len(snake) - 1, 0, -1):
-        snake[i]["x"] = snake[i - 1]["x"]
-        snake[i]["y"] = snake[i - 1]["y"]
+        prev_segment = snake[i - 1]
+        curr_segment = snake[i]
+        
+        # Calculate the vector from the current segment to the previous one
+        dx = prev_segment["x"] - curr_segment["x"]
+        dy = prev_segment["y"] - curr_segment["y"]
+        distance = math.sqrt(dx**2 + dy**2)
+        
+        # Adjust position to maintain the segment distance
+        if distance > segment_distance:
+            ratio = segment_distance / distance
+            curr_segment["x"] += dx * ratio
+            curr_segment["y"] += dy * ratio
+
 
     # Check collisions with all boosts
     collected_boosts = []
