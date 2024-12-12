@@ -4,6 +4,7 @@ from termcolor import colored
 from ws import Connection
 
 ip = '172.20.10.2'
+# ip = 'localhost'
 port = 8080
 
 # Define the WebSocket server URL
@@ -24,20 +25,28 @@ async def connect():
         print("WebSocket connection established.")
         response = await conn.get()
         data = json.loads(response)
-        print(f"User ID: {data['client_id']}")
+        print(f"User ID: {data}")
     except Exception as e:
         print(f"Failed to connect to server: {e}")
 
 
 async def send_recv():
+    global waiting
+
     try:
         while True:
             await conn.send(json.dumps(snake))
-            # print("Sent data.")
             message = await conn.get()
             if message:
                 data = json.loads(message)
                 print(f"Received data: {data}")
+                if len(data) > 1:
+                    waiting = False
+                    print(colored("Game started!", "green"))
+                    break
+                else:
+                    print("Waiting for more players to connect.")
+                    waiting = True
     except Exception as e:
         print(f"Error in send_recv: {e}")
 

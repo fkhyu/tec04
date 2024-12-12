@@ -6,11 +6,14 @@ clients = {}
 game_state = {}
 
 ip = "172.20.10.2"
+# ip = "localhost"
+
 port = 8080
 
 
 async def broadcast():
     while True:
+        # print(clients)
         for client in list(clients.values()):
             try:
                 await client.send(json.dumps(game_state))
@@ -26,14 +29,9 @@ async def handler(websocket, path):
     clients[client_id] = websocket
     print(f"New client connected: {client_id}")
 
-    info = {
-        "client_id": client_id,
-        "waiting": False if len(clients) > 1 else True
-    }
-
     try:
         # Send game configuration to the new client
-        await websocket.send(json.dumps(info))
+        await websocket.send(json.dumps(client_id))
 
         async for message in websocket:
             try:
