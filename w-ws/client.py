@@ -3,8 +3,11 @@ import json
 from termcolor import colored
 from ws import Connection
 
+ip = '172.20.10.2'
+port = 8080
+
 # Define the WebSocket server URL
-server_url = 'ws://localhost:8080/w-ws/server.py'
+server_url = f'ws://{ip}:{port}/w-ws/server.py'
 
 # Establish WebSocket connection
 conn = Connection(server_url)
@@ -12,15 +15,19 @@ conn = Connection(server_url)
 # Example message to send to the server
 snake = [{'x': 11, 'y': 20}, {'x': 30, 'y': 40}]
 
+waiting = bool
+
 # Function to connect to the WebSocket server
 async def connect():
     try:
         await conn.connect()
         print("WebSocket connection established.")
-        client_id = await conn.get()
-        print(f"User ID: {client_id}")
+        response = await conn.get()
+        data = json.loads(response)
+        print(f"User ID: {data['client_id']}")
     except Exception as e:
         print(f"Failed to connect to server: {e}")
+
 
 async def send_recv():
     try:
@@ -39,11 +46,12 @@ async def main():
     # Establish the connection
     await connect()
 
-    # Start receiving and sending
-    task = asyncio.create_task(send_recv())
-
-    # Wait for the receive task (optional; adjust logic for periodic sends)
-    await task
+    if waiting:
+        print("Waiting for more clients to connect.")
+    else:
+        task = asyncio.create_task(send_recv())
+        # Wait for the receive task (optional; adjust logic for periodic sends)
+        await task
 
 # Run the main event loop
 asyncio.run(main())

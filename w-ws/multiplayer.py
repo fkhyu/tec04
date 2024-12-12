@@ -2,18 +2,19 @@ import pygame
 import math
 import random
 import asyncio
-import requests
-import uuid
 import json
 
 from ws import Connection
 
-# Server URL
-server_url = 'ws://localhost:8000/w-ws/server.py' #only for local testing
-conn = Connection(server_url)
+# Received data: {'4441458688': [{'x': 20, 'y': 20}, {'x': 40, 'y': 40}], '4441460128': [{'x': 11, 'y': 20}, {'x': 30, 'y': 40}]}
 
-# Define a unique client ID (this could be any string or identifier)
-client_id = str(uuid.uuid4())
+# Server config
+ip = '172.20.10.2'
+port = 8080
+
+# Define the WebSocket server URL
+server_url = f'ws://{ip}:{port}/w-ws/server.py'
+conn = Connection(server_url)
 
 # Function to send data to the server
 async def send_data(message):

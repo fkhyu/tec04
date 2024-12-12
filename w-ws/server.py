@@ -5,20 +5,19 @@ import json
 clients = {}
 game_state = {}
 
+ip = "172.20.10.2"
+port = 8080
+
 
 async def broadcast():
     while True:
-        if clients:
-            data_to_broadcast = {
-                "state": game_state,
-            }
-            for client in list(clients.values()):
-                try:
-                    await client.send(json.dumps(data_to_broadcast))
-                except websockets.ConnectionClosed:
-                    # TODO: Handle client disconnection later
-                    print("Client disconnected.")
-                    pass
+        for client in list(clients.values()):
+            try:
+                await client.send(json.dumps(game_state))
+            except websockets.ConnectionClosed:
+                # TODO: Handle client disconnection later
+                print("Client disconnected.")
+                pass
         await asyncio.sleep(0.05)
 
 async def handler(websocket, path):
@@ -27,9 +26,14 @@ async def handler(websocket, path):
     clients[client_id] = websocket
     print(f"New client connected: {client_id}")
 
+    info = {
+        "client_id": client_id,
+        "waiting": False if len(clients) > 1 else True
+    }
+
     try:
         # Send game configuration to the new client
-        await websocket.send(json.dumps(id(websocket)))
+        await websocket.send(json.dumps(info))
 
         async for message in websocket:
             try:
@@ -48,7 +52,7 @@ async def handler(websocket, path):
 
 # Run the WebSocket server and broadcast in the same event loop
 async def main():
-    server = await websockets.serve(handler, "localhost", 8080)
+    server = await websockets.serve(handler, ip, port)
     print("Server started at ws://localhost:8080")
     await asyncio.gather(server.wait_closed(), broadcast())
 
