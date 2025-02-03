@@ -3,81 +3,75 @@ import math
 import random
 import asyncio
 import json
+import sys
 
 from ws import Connection
 
-# Received data: {'4441458688': [{'x': 20, 'y': 20}, {'x': 40, 'y': 40}], '4441460128': [{'x': 11, 'y': 20}, {'x': 30, 'y': 40}]}
+class GameClient:
+    def __init__(self, server_url):
+        self.conn = Connection(server_url)
+        self.client_id = None
+        self.game_state = None
+        self.status = None
+        self.snake = [{'x': 11, 'y': 20}, {'x': 30, 'y': 40}]
 
-# Server config
-ip = '172.20.10.2'
-port = 8080
+    async def connect(self):
+        try:
+            await self.conn.connect()
+            print("WebSocket connection established.")
+            response = await self.conn.get()
+            data = json.loads(response)
+            self.client_id = data["client_id"]
+            self.game_state = data["game_state"]
+            self.status = data["status"]
+            print(f"Connected with ID: {self.client_id}")
+            print(f"Current game state: {self.game_state}")
+            print(f"Players connected: {data['player_count']}")
+            print(f"Game status: {self.status}")
+        except Exception as e:
+            print(f"Failed to connect to server: {e}")
+            sys.exit(1)
 
-# Define the WebSocket server URL
-server_url = f'ws://{ip}:{port}/w-ws/server.py'
-conn = Connection(server_url)
+    async def game_loop(self):
+        try:
+            while True:
+                await self.conn.send(json.dumps(self.snake))
+                print(f"Sent snake position: {self.snake}")
+                
+                message = await self.conn.get()
+                if message:
+                    data = json.loads(message)
+                    prev_state = self.game_state
+                    self.game_state = data["game_state"]
+                    
+                    if prev_state != self.game_state:
+                        if self.game_state == "running":
+                            print(("Game started!", "green"))
+                        elif self.game_state == "waiting":
+                            print(("Waiting for players...", "yellow"))
+                    
+                    print(f"Players: {data['player_count']}, State: {self.game_state}")
 
-# Function to send data to the server
-async def send_data(message):
-    response = await conn.send(json.dumps(message))
-    if response:
-        return response
+                await asyncio.sleep(0.05)
+                    
+        except Exception as e:
+            print(f"Error in game loop: {e}")
+            await self.conn.close()
+            sys.exit(1)
 
+async def main():
+    server_url = 'ws://65.109.231.169/tec04/'
+    client = GameClient(server_url)
+    await client.connect()
+    await client.game_loop()
 
-async def receive_data():
-    while True:
-        message = await conn.get()
-        data = json.loads(message)
-        # Update game state with the received data
-        # handle_received_data(data)
-asyncio.create_task(receive_data())
-
-
-# Function to retrieve data from the server (other clients' data)
-# def get_data():
-#     params = {'client_id': client_id}
-#     try:
-#         response = requests.get(server_url, params=params)
-#         if response.status_code == 200:
-#             data = response.json()
-#             # print(f"Server data: {data}")  # Debugging output
-#             if isinstance(data, dict):
-#                 return data
-#         print("No valid data received from server.")
-#     except Exception as e:
-#         print(f"Error fetching data from server: {e}")
-#     return None
-
-# def from_data(my_key, data):
-#     for key, value in data.items():
-#         try :
-#             if key == my_key:
-#                 return value
-#         except:
-#             pass
-
-# def get_snake():
-#     data = from_data('message', get_data())
-#     if not data:
-#         print("No data received.")
-#         return []  # Return an empty list if no data is received
+def get_snake(n):
+    # Players: 2, State: {'snakes': {'140560609385568': [{'x': 11, 'y': 20}, {'x': 30, 'y': 40}], '140560609388208': [{'x': 11, 'y': 20}, {'x': 30, 'y': 40}]}, 'food': [{'x': 92, 'y': -65, 'id': '9518'}, {'x': 47, 'y': -15, 'id': '5579'}, {'x': 14, 'y': 77, 'id': '4333'}, {'x': -73, 'y': -49, 'id': '8528'}, {'x': -38, 'y': -76, 'id': '4764'}], 'scores': {'140560609385568': 0, '140560609388208': 0}}
+    snake = GameClient.game_state['snakes'][n]
+    for key in snake:
+        return snake[key]
     
-#     for other_client_id, snake_data in data.items():
-#         if other_client_id != client_id:  # Skip your own data
-#             # print(f"Snake data from client {other_client_id}: {snake_data}")
-#             return snake_data  # Return the first found snake
-    
-#     print("No other clients found.")
-#     return []  # Default to empty if no other clients are found
-
-# def get_presets(my_key):
-#     data = from_data('preset_data', get_data())
-#     for key, value in data.items():
-#         try :
-#             if key == my_key:
-#                 return value
-#         except:
-#             pass
-
+print(get_snake(1))
 
 # ======================== Pygame Snake Game ========================
 
@@ -87,59 +81,40 @@ pygame.init()
 w, h = 800, 600
 screen = pygame.display.set_mode([w, h])
 # pygame.display.set_caption("WTS - What The Snake")
-pygame.display.set_caption(client_id)
+pygame.display.set_caption(GameClient.client_id)
 
 running = True
 clock = pygame.time.Clock()
 
-# Snake initialization
-r = get_presets('radius')  # Circle radius
-segment_distance = int(0.6 * r)  # Distance between segments
-snake = [{"x": 0, "y": 0}]  # Start the snake at the world origin
-for i in range(4):  # Add initial body segments
+state = GameClient.game_state
+snakes = state['snakes']
+boosts = state['food']
+
+r = 10
+segment_distance = int(0.6 * r)
+snake = [{"x": 0, "y": 0}]
+for i in range(4):
     snake.append({"x": snake[-1]["x"], "y": snake[-1]["y"] + segment_distance})
 
-v = get_presets('speed')  # Speed in pixels/second
-a = get_presets('a')  # Speed multiplier
-max_fps = get_presets('max_fps')  # Maximum frames per second
-direction = {"x": 0, "y": 1}  # Initial direction
+v = 100
+a = 1.0001
+max_fps = 60
+direction = {"x": 0, "y": 1}
 
-# Boost initialization
-boost_radius = 10  # Small boost size
-boost_count = get_presets('boost_count')  # Number of boosts
-boosts = []  # List of boosts
-boost_timer = 0  # Tracks time for adding new boosts
+boost_radius = 10
+boosts = []
 
-# Finite world size (square)
-world_size = get_presets('world_size')  # Total size of the world (centered at origin)
+world_size = 800
 font = pygame.font.SysFont("Arial", 50)
 
-# Center of the screen (snake's head stays here)
 center_x, center_y = w // 2, h // 2
 
-# Load background image
 background_image = pygame.image.load("./src/v6.png")
 bg_width, bg_height = background_image.get_size()
 
-# Scale the background image to fit the world (not the entire screen)
 bg_image_scaled = pygame.transform.scale(background_image, (2 * world_size, 2 * world_size))
 
-# Function to spawn boosts randomly within the finite world
-def spawn_boosts(count, world_size):
-    return [
-        {"x": random.randint(-world_size, world_size), "y": random.randint(-world_size, world_size)}
-        for _ in range(count)
-    ]
-
-# Generate initial boosts
-boosts = spawn_boosts(boost_count, world_size)
-
-
 while running:
-    conn.connect()
-    asyncio.run(send_data(snake))
-
-
     v *= a  # Gradually increase speed
     delta_time = clock.tick(max_fps) / 1000  # Limit to 60 FPS for smooth performance
 
@@ -150,7 +125,6 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-            conn.close
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
                 v *= 2
@@ -163,12 +137,6 @@ while running:
     dx = mouse_x - center_x  # Relative to the screen center
     dy = mouse_y - center_y
     distance_to_cursor = math.sqrt(dx**2 + dy**2)
-
-    # Add 5 new boosts every 60 seconds
-    boost_timer += delta_time
-    if boost_timer >= 60:
-        boosts += spawn_boosts(5, world_size)
-        boost_timer = 0
 
     if distance_to_cursor != 0:
         direction = {"x": dx / distance_to_cursor, "y": dy / distance_to_cursor}
@@ -183,7 +151,7 @@ while running:
     if -world_size <= new_head_y <= world_size:
         snake[0]["y"] = new_head_y
     
-    pygame.display.set_caption(f"X: {snake[0]["x"]:.2f}, Y: {snake[0]["y"]:.2f} | {client_id}")
+    pygame.display.set_caption(f"X: {snake[0]["x"]:.2f}, Y: {snake[0]["y"]:.2f} | {GameClient.client_id}")
 
     # # Check for out-of-bounds
     # if not (-world_size <= new_head_x <= world_size) or not (-world_size <= new_head_y <= world_size):
@@ -269,5 +237,4 @@ while running:
 
     pygame.display.flip()
 
-conn.close()
 pygame.quit()

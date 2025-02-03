@@ -1,66 +1,66 @@
 import asyncio
 import json
+import sys
 from termcolor import colored
 from ws import Connection
 
-ip = '172.20.10.2'
-# ip = 'localhost'
-port = 8080
+class GameClient:
+    def __init__(self, server_url):
+        self.conn = Connection(server_url)
+        self.client_id = None
+        self.game_state = None
+        self.status = None
+        self.snake = [{'x': 11, 'y': 20}, {'x': 30, 'y': 40}]
 
-# Define the WebSocket server URL
-server_url = f'ws://{ip}:{port}/w-ws/server.py'
+    async def connect(self):
+        try:
+            await self.conn.connect()
+            print("WebSocket connection established.")
+            response = await self.conn.get()
+            data = json.loads(response)
+            self.client_id = data["client_id"]
+            self.game_state = data["game_state"]
+            self.status = data["status"]
+            print(f"Connected with ID: {self.client_id}")
+            print(f"Current game state: {self.game_state}")
+            print(f"Players connected: {data['player_count']}")
+            print(f"Game status: {self.status}")
+        except Exception as e:
+            print(f"Failed to connect to server: {e}")
+            sys.exit(1)
 
-# Establish WebSocket connection
-conn = Connection(server_url)
+    async def game_loop(self):
+        try:
+            while True:
+                await self.conn.send(json.dumps(self.snake))
+                print(f"Sent snake position: {self.snake}")
+                
+                message = await self.conn.get()
+                if message:
+                    data = json.loads(message)
+                    prev_state = self.game_state
+                    self.game_state = data["game_state"]
+                    
+                    if prev_state != self.game_state:
+                        if self.game_state == "running":
+                            print(colored("Game started!", "green"))
+                        elif self.game_state == "waiting":
+                            print(colored("Waiting for players...", "yellow"))
+                    
+                    print(f"Players: {data['player_count']}, State: {self.game_state}")
 
-# Example message to send to the server
-snake = [{'x': 11, 'y': 20}, {'x': 30, 'y': 40}]
+                await asyncio.sleep(0.05)
+                    
+        except Exception as e:
+            print(f"Error in game loop: {e}")
+            await self.conn.close()
+            sys.exit(1)
 
-waiting = bool
-
-# Function to connect to the WebSocket server
-async def connect():
-    try:
-        await conn.connect()
-        print("WebSocket connection established.")
-        response = await conn.get()
-        data = json.loads(response)
-        print(f"User ID: {data}")
-    except Exception as e:
-        print(f"Failed to connect to server: {e}")
-
-
-async def send_recv():
-    global waiting
-
-    try:
-        while True:
-            await conn.send(json.dumps(snake))
-            message = await conn.get()
-            if message:
-                data = json.loads(message)
-                print(f"Received data: {data}")
-                if len(data) > 1:
-                    waiting = False
-                    print(colored("Game started!", "green"))
-                    break
-                else:
-                    print("Waiting for more players to connect.")
-                    waiting = True
-    except Exception as e:
-        print(f"Error in send_recv: {e}")
-
-# Main function to manage connection, sending, and receiving
 async def main():
-    # Establish the connection
-    await connect()
+    server_url = 'ws://65.109.231.169/tec04/'
+    client = GameClient(server_url)
+    await client.connect()
+    await client.game_loop()
 
-    if waiting:
-        print("Waiting for more clients to connect.")
-    else:
-        task = asyncio.create_task(send_recv())
-        # Wait for the receive task (optional; adjust logic for periodic sends)
-        await task
-
-# Run the main event loop
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
